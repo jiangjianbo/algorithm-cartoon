@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Algorithm Cartoon</title>
+</head>
+<body>
+    <header>
+        <nav>
+            <!-- 导航栏 -->
+        </nav>
+    </header>
+
+    <main>
+        <!-- 主要内容区域 -->
+    </main>
+
+    <footer>
+        <!-- 页脚 -->
+    </footer>
+
+    <script lang="javascript">
+
+        // 辅助函数
+        function asVal(value) {
+            if (value instanceof IntValue) {
+                return value.getValue();
+            } else {
+                return value;
+            }
+        }
+
+        // 数组类
+        class DataArray {
+            constructor(arr) {
+                this.arr = [];
+                for (let i = 0; i < arr.length; i++) {
+                    this.arr.push(new DataItem(arr[i]));
+                }
+            }
+
+            getItem(index) {
+                return this.arr[asVal(index)];
+            }
+
+            setItem(index, value) {
+                this.arr[asVal(index)] = value;
+            }
+
+            length() {
+                return this.arr.length;
+            }
+
+            markRange(start, end) {
+                // 标记指定范围的元素
+            }
+
+            toString() {
+                return this.arr.join(', ');
+            }
+        }
+
+        class IntValue {
+            constructor(value) {
+                if (value instanceof IntValue) {
+                    this.value = value.getValue();
+                }else {
+                    this.value = value;                    
+                }
+            }
+
+            getValue() {
+                return this.value;
+            }
+
+            setValue(value) {
+                this.value = asVal(value);
+            }
+
+            inc(value) {
+                this.value += asVal(value);
+                return this;
+            }
+
+            dec(value) {
+                this.value -= asVal(value);
+                return this; 
+            }
+
+            add(other) {
+                return new IntValue(this.value + asVal(other));
+            }
+
+            sub(other) {
+                return new IntValue(this.value - asVal(other));
+            }
+
+            mul(other) {
+                return new IntValue(this.value * asVal(other));
+            }
+
+            div(other) {
+                return new IntValue(this.value / asVal(other));
+            }
+
+            lessThan(other) {
+                return new BooleanValue(this.value < asVal(other));
+            }
+            greatThan(other) {
+                return new BooleanValue(this.value > asVal(other));
+            }
+
+            lessEq(other) {
+                return new BooleanValue(this.value <= asVal(other));
+            }
+
+            greatEq(other) {
+                return new BooleanValue(this.value >= asVal(other));
+            }
+
+            equals(other) {
+                return new BooleanValue(this.value === asVal(other));
+            }
+
+            notEquals(other) {
+                return new BooleanValue(this.value !== asVal(other));
+            }
+
+            clone() {
+                return new IntValue(this.value);
+            }
+
+            toString() {
+                return this.value.toString();
+            }
+        }
+
+        // 数据项类
+        class DataItem extends IntValue {
+            constructor(value) {
+                if (value instanceof IntValue) {
+                    super(value.getValue());
+                } else {
+                    super(value);
+                }
+            }
+
+            swapWith(other) {
+                const temp = this.value;
+                this.value = other.getValue();
+                other.setValue(temp);
+            }
+            
+            clone() {
+                return new DataItem(this.value);
+            }
+        }
+
+        // 布尔值类
+        class BooleanValue {
+            constructor(value) {
+                this.value = value;
+            }
+
+            getValue() {
+                return this.value;
+            }
+
+            and(other) {
+                return new BooleanValue(this.value && other.getValue());
+            }
+
+            toString() {
+                return this.value.toString();
+            }
+        }
+
+
+        // 快速排序算法
+        function quickSort(arr, low, high) {
+            if (low.lessThan(high).getValue()) {
+                // 执行分区操作
+                const pivotIndex = partition(arr, low, high);
+                // 递归对左右两部分排序
+                quickSort(arr, low, pivotIndex.sub(1));
+                quickSort(arr, pivotIndex.add(1), high);
+            }
+        }
+
+        function partition(arr, low, high) {
+            arr.markRange(low, high);
+
+            const pivot = arr.getItem(low).clone(); // 选择第一个元素作为基准值
+            let left = low.clone();
+            let right = high.clone();
+
+            while (left.lessThan(right).getValue()) {
+                // 从右向左找到第一个小于等于基准值的元素
+                while (left.lessThan(right).and(arr.getItem(right).greatThan(pivot)).getValue()) {
+                    right.dec(1);
+                }
+                // 从左向右找到第一个大于基准值的元素
+                while (left.lessThan(right).and(arr.getItem(left).lessEq(pivot)).getValue()) {
+                    left.inc(1);
+                }
+                // 交换两个元素
+                if (left.lessThan(right).getValue()) {
+                    arr.getItem(left).swapWith(arr.getItem(right));
+                }
+            }
+
+            // 将基准值放到中间位置
+            arr.getItem(low).swapWith(arr.getItem(right));
+            return right; // 返回基准值的最终位置
+        }
+
+        // 示例
+        const arr = new DataArray([3, 6, 8, 10, 1, 2, 1]);
+        quickSort(arr, new IntValue(0), new IntValue(arr.length() - 1));
+        console.log(arr.toString()); // 输出：[1, 1, 2, 3, 6, 8, 10]
+    </script>
+</body>
+</html>
