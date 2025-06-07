@@ -5,8 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Algorithm Cartoon</title>
+    <link rel="stylesheet" href="common.css">
+    <script src="animation.js"></script>
+    <style>
+      
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div class="pivot-container">
+            <h3>暂存区</h3>
+            <span>Pivot = </span>
+            <div id="pivot" class="box"></div>
+        </div>
+        
+        <div class="data-container">
+            <h3>数据存放区</h3>
+            <div id="data"></div>
+        </div>
+        
+        <div class="controls">
+            <label for="speed">动画速度：</label>
+            <input type="range" id="speed" min="1" max="10" value="5">
+        </div>
+    </div>
     <header>
         <nav>
             <!-- 导航栏 -->
@@ -21,44 +43,13 @@
         <!-- 页脚 -->
     </footer>
 
-    <script lang="javascript">
-
+    <script lang="javascript">      
         // 辅助函数
         function asVal(value) {
             if (value instanceof IntValue) {
                 return value.getValue();
             } else {
                 return value;
-            }
-        }
-
-        // 数组类
-        class DataArray {
-            constructor(arr) {
-                this.arr = [];
-                for (let i = 0; i < arr.length; i++) {
-                    this.arr.push(new DataItem(arr[i]));
-                }
-            }
-
-            getItem(index) {
-                return this.arr[asVal(index)];
-            }
-
-            setItem(index, value) {
-                this.arr[asVal(index)] = value;
-            }
-
-            length() {
-                return this.arr.length;
-            }
-
-            markRange(start, end) {
-                // 标记指定范围的元素
-            }
-
-            toString() {
-                return this.arr.join(', ');
             }
         }
 
@@ -147,7 +138,18 @@
                 }
             }
 
-            swapWith(other) {
+            createView(id) {
+                this.id = id;
+                //AnimationController.createPivotView(id, this.value);
+                return this;
+            }
+
+            async swapWith(other) {
+                //await AnimationController.swapElements(this.id, other.id);
+                this.swapDataWith(other);
+            }
+
+            swapDataWith(other) {
                 const temp = this.value;
                 this.value = other.getValue();
                 other.setValue(temp);
@@ -155,6 +157,44 @@
             
             clone() {
                 return new DataItem(this.value);
+            }
+        }
+
+        // 数组类
+        class DataArray {
+            constructor(arr) {
+                this.arr = [];
+                for (let i = 0; i < arr.length; i++) {
+                    this.arr.push(new DataItem(arr[i]));
+                }
+            }
+
+            createView(id) {
+                this.containerId = id;
+                //AnimationController.createArrayView(id, this.arr);
+                return this;
+            }
+
+            markRange(start, end) {
+                const startVal = asVal(start);
+                const endVal = asVal(end);
+                //AnimationController.createRangeMark(`${this.containerId}_${startVal}`,`${this.containerId}_${endVal}`);
+            }
+
+            getItem(index) {
+                return this.arr[asVal(index)];
+            }
+
+            setItem(index, value) {
+                this.arr[asVal(index)] = value;
+            }
+
+            length() {
+                return this.arr.length;
+            }
+
+            toString() {
+                return this.arr.join(', ');
             }
         }
 
@@ -177,22 +217,21 @@
             }
         }
 
-
         // 快速排序算法
-        function quickSort(arr, low, high) {
+        async function quickSort(arr, low, high) {
             if (low.lessThan(high).getValue()) {
                 // 执行分区操作
-                const pivotIndex = partition(arr, low, high);
+                const pivotIndex = await partition(arr, low, high);
                 // 递归对左右两部分排序
-                quickSort(arr, low, pivotIndex.sub(1));
-                quickSort(arr, pivotIndex.add(1), high);
+                await quickSort(arr, low, pivotIndex.sub(1));
+                await quickSort(arr, pivotIndex.add(1), high);
             }
         }
 
-        function partition(arr, low, high) {
+        async function partition(arr, low, high) {
             arr.markRange(low, high);
 
-            const pivot = arr.getItem(low).clone(); // 选择第一个元素作为基准值
+            const pivot = arr.getItem(low).clone().createView("pivot"); // 选择第一个元素作为基准值
             let left = low.clone();
             let right = high.clone();
 
@@ -212,14 +251,25 @@
             }
 
             // 将基准值放到中间位置
-            arr.getItem(low).swapWith(arr.getItem(right));
+            await arr.getItem(low).swapWith(arr.getItem(right));
             return right; // 返回基准值的最终位置
         }
 
-        // 示例
-        const arr = new DataArray([3, 6, 8, 10, 1, 2, 1]);
-        quickSort(arr, new IntValue(0), new IntValue(arr.length() - 1));
-        console.log(arr.toString()); // 输出：[1, 1, 2, 3, 6, 8, 10]
+        // 修改示例代码为异步调用
+        async function startSort() {
+            const arr = new DataArray([3, 6, 8, 10, 1, 2, 1]).createView("data");
+            quickSort(arr, new IntValue(0), new IntValue(arr.length() - 1));
+            console.log(arr.toString()); // 输出：[1, 1, 2, 3, 6, 8, 10]
+        }
+
+        // 初始化速度控制
+        document.getElementById('speed').addEventListener('input', function(e) {
+            AnimationController.value = parseInt(e.target.value);
+        });
+
+        // 启动排序
+        startSort().catch(console.error);
     </script>
+    <script src="tests/animation.test.js"></script>
 </body>
 </html>

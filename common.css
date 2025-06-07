@@ -1,0 +1,52 @@
+.container {
+    margin: 20px;
+    padding: 20px;
+}
+
+.data-container {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 2px solid #333;
+}
+
+.pivot-container {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 2px solid #333;
+}
+
+.box {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    margin: 5px;
+    border: 2px solid #333;
+    text-align: center;
+    line-height: 50px;
+    font-size: 20px;
+}
+
+.box.inactive {
+    border-style: dashed;
+    background-color: #f0f0f0;
+}
+
+.range-mark {
+    border: 2px dashed #666;
+    padding: 5px;
+    display: inline-block;
+}
+
+.arrow {
+    position: absolute;
+    border-top: 2px dashed #666;
+    width: 100px;
+    transform-origin: left center;
+}
+
+.compare-line {
+    position: absolute;
+    border-top: 2px dashed #666;
+    width: 50px;
+}
+
