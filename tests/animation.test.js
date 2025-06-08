@@ -1,176 +1,81 @@
-// 简单的测试框架
-class TestRunner {
-    constructor() {
-        this.tests = [];
-        this.beforeEachFns = [];
-    }
+'use strict';
+import { describe, expect, test } from '@jest/globals';
+import {Element, Path, Box, Link, AnimationFramework} from '../animation.js';
 
-    beforeEach(fn) {
-        this.beforeEachFns.push(fn);
-    }
-
-    test(name, fn) {
-        this.tests.push({ name, fn });
-    }
-
-    async runTests() {
-        console.log('开始运行测试...');
-        let passed = 0;
-        let failed = 0;
-
-        for (const test of this.tests) {
-            try {
-                // 运行beforeEach函数
-                for (const beforeFn of this.beforeEachFns) {
-                    await beforeFn();
-                }
-
-                // 运行测试
-                await test.fn();
-                console.log(`测试用例成功： ${test.name}`);
-                passed++;
-            } catch (error) {
-                console.error(`测试用例失败： ${test.name}`);
-                console.error(`  错误消息: ${error.message}`);
-                failed++;
-            }
-        }
-
-        console.log(`\n测试完成: ${passed} 通过, ${failed} 失败`);
-    }
-}
-
-// 断言函数
-class Assertion {
-    static assertEquals(actual, expected, message = '') {
-        if (actual !== expected) {
-            throw new Error(`${message} 期望值: ${expected}, 实际值: ${actual}`);
-        }
-    }
-
-    static assertNotNull(value, message = '') {
-        if (value === null || value === undefined) {
-            throw new Error(`${message} 值不应为空`);
-        }
-    }
-
-    static assertTrue(value, message = '') {
-        if (!value) {
-            throw new Error(`${message} 期望为true`);
-        }
-    }
-
-    static assertFalse(value, message = '') {
-        if (value) {
-            throw new Error(`${message} 期望为false`);
-        }
-    }
-
-    static assertInRange(value, min, max, message = '') {
-        if (value < min || value > max) {
-            throw new Error(`${message} 值${value}不在范围[${min}, ${max}]内`);
-        }
-    }
-}
-
-// AnimationController测试
-async function runAnimationControllerTests() {
-    const runner = new TestRunner();
-
-    // 设置测试环境
-    runner.beforeEach(() => {
-        document.body.innerHTML = `
-            <div id="pivot"></div>
-            <div id="data"></div>
-        `;
-        AnimationController.value = 5;
+// 对动画相关的基础元素的测试，主要测试AnimationFramework和各种元素的交互关系
+describe('Animation Framework', () => {
+    let framework;
+    beforeEach(() => {
+        framework = new AnimationFramework();
     });
 
-    // 速度控制测试
-    runner.test('速度计算测试', () => {
-        AnimationController.value = 1;
-        Assertion.assertEquals(AnimationController.speed, 1000);
-        
-        AnimationController.value = 10;
-        Assertion.assertEquals(AnimationController.speed, 100);
+    test('should add elements to the framework', () => {
+        const element = new Element();
+        framework.addElement(element);
+        expect(framework.elements).toContain(element);
     });
 
-    // 创建box测试
-    runner.test('创建box元素测试', () => {
-        const box = AnimationController.createBox('test-box', 42);
-        Assertion.assertEquals(box.id, 'test-box');
-        Assertion.assertEquals(box.className, 'box');
-        Assertion.assertEquals(box.textContent, '42');
+    test('should remove elements from the framework', () => {
+        const element = new Element();
+        framework.addElement(element);
+        framework.removeElement(element);
+        expect(framework.elements).not.toContain(element);
     });
 
-    // Pivot视图测试
-    runner.test('创建pivot视图测试', () => {
-        AnimationController.createPivotView('pivot-box', 42);
-        const pivotContainer = document.getElementById('pivot');
-        const box = pivotContainer.firstChild;
-        
-        Assertion.assertNotNull(box);
-        Assertion.assertEquals(box.id, 'pivot-box');
-        Assertion.assertEquals(box.textContent, '42');
+    test('should update all elements in the framework', () => {
+        const element = new Element();
+        framework.addElement(element);
+        jest.spyOn(element, 'update');
+        framework.update();
+        expect(element.update).toHaveBeenCalled();
     });
 
-    // 数组视图测试
-    runner.test('创建数组视图测试', () => {
-        const items = [
-            { id: null, getValue: () => 1 },
-            { id: null, getValue: () => 2 },
-            { id: null, getValue: () => 3 }
-        ];
-        
-        AnimationController.createArrayView('data', items);
-        const container = document.getElementById('data');
-        const boxes = container.children;
-        
-        Assertion.assertEquals(boxes.length, 3);
-        Assertion.assertEquals(boxes[0].textContent, '1');
-        Assertion.assertEquals(boxes[1].textContent, '2');
-        Assertion.assertEquals(boxes[2].textContent, '3');
+    test('should flash elements in the framework', () => {
+        const element = new Element();
+        framework.addElement(element);
+        jest.spyOn(element, 'flash');
+        framework.flash(element);
+        expect(element.flash).toHaveBeenCalled();
     });
 
-    // 范围标记测试
-    runner.test('创建范围标记测试', () => {
-        const container = document.getElementById('data');
-        container.innerHTML = `
-            <div id="start" class="box" style="position: absolute; left: 0; top: 0; width: 50px; height: 50px;"></div>
-            <div id="end" class="box" style="position: absolute; left: 100px; top: 0; width: 50px; height: 50px;"></div>
-        `;
-
-        AnimationController.createRangeMark('start', 'end');
-        const rangeMark = container.querySelector('.range-mark');
-        
-        Assertion.assertNotNull(rangeMark);
-        Assertion.assertEquals(rangeMark.style.width, '150px');
+    test('should draw all elements in the framework', () => {
+        const element = new Element();
+        framework.addElement(element);
+        jest.spyOn(element, 'draw');
+        framework.draw();
+        expect(element.draw).toHaveBeenCalled();
     });
 
-    // 元素交换动画测试
-    runner.test('元素交换动画测试', async () => {
-        document.body.innerHTML += `
-            <div id="elem1" style="position: absolute; left: 0; top: 0;">1</div>
-            <div id="elem2" style="position: absolute; left: 100px; top: 0;">2</div>
-        `;
-
-        const startTime = Date.now();
-        await AnimationController.swapElements('elem1', 'elem2');
-        const duration = Date.now() - startTime;
-
-        const elem1 = document.getElementById('elem1');
-        const elem2 = document.getElementById('elem2');
-        
-        Assertion.assertEquals(elem1.textContent, '2');
-        Assertion.assertEquals(elem2.textContent, '1');
-        Assertion.assertInRange(duration, 500, 700);
+    test('should move elements along a path', () => {
+        const path = new Path([{x: 0, y: 0}, {x: 10, y: 10}]);
+        const element = new Element();
+        framework.addElement(element);
+        framework.moveBy(element, path, 1000);
+        expect(element.path).toEqual(path);
     });
 
-    // 运行所有测试
-    await runner.runTests();
-}
+    test('should draw boxes', () => {
+        const box = new Box(0, 0, 10, 10);
+        framework.drawBox(box);
+        expect(framework.boxes).toContain(box);
+    });
 
-// 运行测试
-window.onload = () => {
-    runAnimationControllerTests().catch(console.error);
-};
+    test('should draw links', () => {
+        const link = new Link(new Path([{x: 0, y: 0}, {x: 10, y: 10}]));
+        framework.drawLink(link);
+        expect(framework.links).toContain(link);
+    });
+
+    test('should set active draw style', () => {
+        const element = new Element();
+        framework.addElement(element);
+        const style = {strokeStyle: 'red'};
+        framework.activeDrawStyle(element, style);
+        expect(element.activeDrawStyle).toEqual(style);
+    });
+
+    test('should update drawing content', () => {
+        framework.update();
+        expect(framework.update).toHaveBeenCalled();
+    });
+})
