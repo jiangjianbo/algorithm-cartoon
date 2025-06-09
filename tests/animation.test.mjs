@@ -1,5 +1,6 @@
 "use strict";
-import { describe, expect, test } from "@jest/globals";
+
+import { describe, expect, test, jest } from "@jest/globals";
 import {
     Element,
     Path,
@@ -50,7 +51,7 @@ describe("AnimationFramework", () => {
             // 模拟框架实现
             framework.moveBy = jest.fn();
 
-            element.moveBy(path, 2000, framework);
+            element.moveBy(framework, path, 2000);
             expect(framework.moveBy).toHaveBeenCalledWith(element, path, 2000);
         });
     });

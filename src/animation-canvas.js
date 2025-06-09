@@ -1,66 +1,116 @@
 'use strict';
 
-import {Element, Path, Box, Link, AnimationFramework} from '../animation.js';
+import {Element, Path, Box, Link, AnimationFramework} from './animation.js';
 
-
+/**
+ * Canvas渲染的动画框架实现
+ * @extends AnimationFramework
+ */
 class CanvasAnimationFramework extends AnimationFramework  {
+    /**
+     * 创建Canvas动画框架实例
+     * @param {string} canvasId - HTML Canvas元素的ID
+     * @throws {Error} 如果找不到指定ID的Canvas元素
+     */
     constructor(canvasId) {
         super();
         this.canvasId = canvasId;
         this.canvas = document.getElementById(canvasId);
+        
+        if (!this.canvas) {
+            throw new Error(`无法找到ID为 "${canvasId}" 的Canvas元素`);
+        }
+        
         this.context = this.canvas.getContext('2d');
+        this.lastFrameTime = 0;
+        this.fps = 60;
+        this.frameInterval = 1000 / this.fps;
     }
 
+    /**
+     * 绘制链接元素
+     * @param {Link} link - 要绘制的链接元素
+     */
     drawLink(link) {
         if (!link.visible) return;
-        framework.beginPath();
-        framework.activeDrawStyle(link, link.style);
+        this.beginPath();
+        this.activeDrawStyle(link, link.style);
 
-        let path = link.path;
-        framework.moveTo(path.getStartPoint().x, path.getStartPoint().y);
+        const path = link.path;
+        this.moveTo(path.getStartPoint().x, path.getStartPoint().y);
+        
         for (let i = 1; i < path.points.length; i++) {
-            framework.lineTo(path.points[i].x, path.points[i].y);
+            this.lineTo(path.points[i].x, path.points[i].y);
         }
 
+        this.drawArrows(link, path);
+        this.stroke();
+    }
+
+    /**
+     * 绘制箭头（私有方法）
+     * @param {Link} link - 链接元素
+     * @param {Path} path - 路径对象
+     */
+    drawArrows(link, path) {
         if (link.startArrow) {
-            framework.moveTo(path.getStartPoint().x, path.getStartPoint().y);
-            framework.lineTo(path.getStartPoint().x + 10, path.getStartPoint().y + 5);
-            framework.lineTo(path.getStartPoint().x + 10, path.getStartPoint().y - 5);
+            this.moveTo(path.getStartPoint().x, path.getStartPoint().y);
+            this.lineTo(path.getStartPoint().x + 10, path.getStartPoint().y + 5);
+            this.lineTo(path.getStartPoint().x + 10, path.getStartPoint().y - 5);
+            this.closePath();
         }
         
         if (link.endArrow) {
-            framework.moveTo(path.getEndPoint().x, path.getEndPoint().y);
-            framework.lineTo(path.getEndPoint().x - 10, path.getEndPoint().y + 5);
-            framework.lineTo(path.getEndPoint().x - 10, path.getEndPoint().y - 5);
+            this.moveTo(path.getEndPoint().x, path.getEndPoint().y);
+            this.lineTo(path.getEndPoint().x - 10, path.getEndPoint().y + 5);
+            this.lineTo(path.getEndPoint().x - 10, path.getEndPoint().y - 5);
+            this.closePath();
         }
-
-        framework.stroke();
     }
 
+    /**
+     * 绘制矩形元素
+     * @param {Box} box - 要绘制的矩形元素
+     */
     drawBox(box) {
         if (!box.visible) return;
-        this.context.beginPath();
-        this.context.rect(box.x, box.y, box.width, box.height);
+        this.beginPath();
+        this.rect(box.x, box.y, box.width, box.height);
         this.activeDrawStyle(box, box.style);
-        this.context.stroke();
+        
+        // 处理填充样式
+        if (box.style.backgroundColor !== 'transparent') {
+            this.context.fillStyle = box.style.backgroundColor;
+            this.context.fill();
+        }
+        
+        this.stroke();
     }
 
+    /**
+     * 让元素沿路径移动
+     * @param {Element} element - 要移动的元素
+     * @param {Path} path - 移动路径
+     * @param {number} duration - 动画持续时间（毫秒）
+     */
     moveBy(element, path, duration) {
+        if (!(element instanceof Element) || !(path instanceof Path)) {
+            throw new TypeError('moveBy参数类型错误');
+        }
+        
+        const startPoint = path.getStartPoint();
+        const endPoint = path.getEndPoint();
         const startX = element.x;
         const startY = element.y;
-        const endX = path.getEndPoint().x;
-        const endY = path.getEndPoint().y;
+        const startTime = performance.now();
 
-        let startTime = null;
-
-        const animate = (timestamp) => {
-            if (!startTime) startTime = timestamp;
-            const progress = Math.min((timestamp - startTime) / duration, 1);
-
-            element.moveTo(
-                startX + (endX - startX) * progress,
-                startY + (endY - startY) * progress
-            );
+        const animate = (currentTime) => {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // 线性插值计算当前位置
+            element.x = startX + (endPoint.x - startPoint.x) * progress;
+            element.y = startY + (endPoint.y - startPoint.y) * progress;
 
             if (progress < 1) {
                 requestAnimationFrame(animate);
@@ -70,52 +120,74 @@ class CanvasAnimationFramework extends AnimationFramework  {
         requestAnimationFrame(animate);
     }
 
+    /**
+     * 应用元素样式
+     * @param {Element} element - 当前元素
+     * @param {Object} style - 样式对象
+     */
     activeDrawStyle(element, style) {
         let borderColor = style.borderColor;
         let borderWidth = style.borderWidth;
         let borderStyle = style.borderStyle;
 
-        if (this.flashingElements.includes(element.id)) {
+        // 处理闪烁效果
+        if (this.flashingElements.includes(element)) {
             const flashInterval = 500; // 闪烁间隔
-            const now = Date.now();
-            const flashState = Math.floor((now % (2 * flashInterval)) / flashInterval);
-
-            if (flashState === 0) {
-                borderColor = 'red'; // 闪烁时的边框颜色
-            } else {
-                borderColor = 'black'; // 默认边框颜色
-            }
+            const flashState = Math.floor((Date.now() % (2 * flashInterval)) / flashInterval);
+            borderColor = flashState === 0 ? 'red' : style.borderColor;
         }
 
         this.context.strokeStyle = borderColor;
         this.context.lineWidth = borderWidth;
+        
+        // 应用线条样式
         if (borderStyle === 'dashed') {
             this.context.setLineDash([5, 10]);
+        } else if (borderStyle === 'dotted') {
+            this.context.setLineDash([2, 5]);
         } else {
             this.context.setLineDash([]);
         }
     }
 
-    update() {
+    /**
+     * 更新画布内容（带节流控制）
+     * @param {number} [timestamp] - 动画时间戳
+     */
+    update(timestamp = performance.now()) {
+        // 实现节流，控制帧率
+        if (timestamp - this.lastFrameTime < this.frameInterval) {
+            requestAnimationFrame(this.update.bind(this));
+            return;
+        }
+        
+        this.lastFrameTime = timestamp;
+        
+        // 清除画布
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         // 绘制所有元素
         this.elements.forEach(element => {
-            this.drawStyle(element.id, element.constructor.name, element.style);
-            element.draw(this.context);
+            this.activeDrawStyle(element, element.style);
+            element.draw(this);
         });
 
         // 绘制临时对象
         this.temporaryObjects.forEach(element => {
-            this.drawStyle(element.id, element.constructor.name, element.style);
-            element.draw(this.context);
+            this.activeDrawStyle(element, element.style);
+            element.draw(this);
         });
 
-        requestAnimationFrame(() => this.update());
+        requestAnimationFrame(this.update.bind(this));
     }
 
+    // Canvas上下文代理方法
     beginPath(){
         this.context.beginPath();
+    }
+
+    closePath(){
+        this.context.closePath();
     }
 
     rect(x, y, width, height){
@@ -133,27 +205,17 @@ class CanvasAnimationFramework extends AnimationFramework  {
     lineTo(x, y) {
         this.context.lineTo(x, y);
     }
+
+    /**
+     * 设置动画帧率
+     * @param {number} fps - 帧率（帧/秒）
+     */
+    setFPS(fps) {
+        this.fps = fps;
+        this.frameInterval = 1000 / fps;
+    }
 }
 
 
-
 // export
-export { CanvasAnimationFramework };
-
-/*
-// 使用示例
-const framework = new AnimationFramework();
-const box1 = new Box(50, 50, 100, 100);
-const box2 = new Box(200, 200, 100, 100);
-
-const link = framework.createLink(box1, box2, 'dashed', false, true);
-
-framework.addElement(box1);
-framework.addElement(box2);
-framework.addElement(link);
-
-box1.flash(); // 方框闪烁
-box1.moveBy(link.path, 2000); // 方框沿着路径移动
-
-framework.update();
-*/
+export { CanvasAnimationFramework };    
