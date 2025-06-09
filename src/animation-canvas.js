@@ -1,6 +1,6 @@
 'use strict';
 
-import {Element, Path, Box, Link, AnimationFramework} from './animation.js';
+import {Element, Path, Box, Link, AnimationFramework} from '../animation.js';
 
 
 class CanvasAnimationFramework extends AnimationFramework  {

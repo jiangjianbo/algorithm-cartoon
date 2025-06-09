@@ -5,9 +5,20 @@
  * @param {number} x 元素的x坐标
  * @param {number} y 元素的y坐标
  * @param {boolean} visible 元素的可见性
+ * @param {string} id 元素的id
  */
 class Element {
-    constructor(x, y, visible = true) {
+    constructor(x, y, visible = true, id = null) {
+        // 检查坐标参数类型
+        if (typeof x !== 'number' || typeof y !== 'number') {
+            throw new TypeError('Element坐标必须为数字类型');
+        }
+        // 检查可见性参数类型
+        if (typeof visible !== 'boolean') {
+            throw new TypeError('Element可见性必须为布尔类型');
+        }
+        
+        this.id = id || `element_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         this.x = x;
         this.y = y;
         this.visible = visible;
@@ -45,10 +56,11 @@ class Element {
 
     /**
      * 沿着路径移动对象，带动画效果
+     * @param {AnimationFramework} framework
      * @param {Path} path 路径对象
      * @param {number} duration 时间
      */
-    moveBy(path, duration) {
+    moveBy(framework, path, duration) {
         framework.moveBy(this, path, duration);
     }
 
@@ -72,6 +84,16 @@ class Element {
 class Box extends Element {
     constructor(x, y, width, height) {
         super(x, y);
+
+        // 检查宽高参数类型
+        if (typeof width !== 'number' || typeof height !== 'number') {
+            throw new TypeError('Box宽高必须为数字类型');
+        }
+        // 检查宽高参数有效性
+        if (width <= 0 || height <= 0) {
+            throw new RangeError('Box宽高必须大于0');
+        }
+
         this.width = width;
         this.height = height;
     }
@@ -88,6 +110,17 @@ class Box extends Element {
  */
 class Path {
     constructor(points) {
+        // 检查points是否为数组
+        if (!Array.isArray(points)) {
+            throw new TypeError('Path的points必须为数组类型');
+        }
+        // 检查每个点是否包含x和y坐标
+        points.forEach((point, index) => {
+            if (typeof point.x !== 'number' || typeof point.y !== 'number') {
+                throw new TypeError(`Path的点${index}必须包含x和y数字坐标`);
+            }
+        });
+
         this.points = points;
     }
 
@@ -117,6 +150,19 @@ class Path {
  */
 class Link extends Element {
     constructor(path, lineStyle = 'solid', startArrow = false, endArrow = false) {
+        // 检查path参数类型
+        if (!(path instanceof Path)) {
+            throw new TypeError('Link的path必须为Path实例');
+        }
+        // 检查线样式类型
+        if (typeof lineStyle !== 'string') {
+            throw new TypeError('Link线样式必须为字符串类型');
+        }
+        // 检查箭头参数类型
+        if (typeof startArrow !== 'boolean' || typeof endArrow !== 'boolean') {
+            throw new TypeError('Link箭头参数必须为布尔类型');
+        }
+
         super(path.getStartPoint().x, path.getStartPoint().y, true);
         this.path = path;
         this.style = {
@@ -219,6 +265,7 @@ class AnimationFramework {
      */
     moveBy(element, path, duration) {
         // 实现元素移动的逻辑
+        throw new Error('子类必须实现moveBy方法');
     }
 
     /**
@@ -227,6 +274,7 @@ class AnimationFramework {
      */
     drawBox(box) {
         // 绘制方框的逻辑
+        throw new Error('子类必须实现drawBox方法');
     }
     
     /**
@@ -235,6 +283,7 @@ class AnimationFramework {
      */
     drawLink(link) {
         // 绘制链接的逻辑
+        throw new Error('子类必须实现drawLink方法');
     }
 
     /**
@@ -243,14 +292,14 @@ class AnimationFramework {
      * @param {Object} style 样式对象
      */
     activeDrawStyle(element, style) {
-        
+        throw new Error('子类必须实现activeDrawStyle方法');
     }
 
     /**
      * 抽象接口，更新绘画内容
      */
     update() {
-        
+        throw new Error('子类必须实现update方法');
     }
 
 }
