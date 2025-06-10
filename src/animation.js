@@ -17,7 +17,7 @@ class Element {
         if (typeof visible !== 'boolean') {
             throw new TypeError('Element可见性必须为布尔类型');
         }
-        
+
         this.id = id || `element_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         this.x = x;
         this.y = y;
@@ -258,6 +258,179 @@ class AnimationFramework {
     }
 
     /**
+     * 内核函数：在两点之间移动
+     * @param {Object} startPoint - 起点 {x, y}
+     * @param {Object} endPoint - 终点 {x, y}
+     * @param {number} duration - 动画持续时间（毫秒）
+     * @param {function} stepCallback - 每步回调 (x, y, stepIndex)
+     * @param {function} completeCallback - 完成回调
+     */
+    moveBetweenPoints(startPoint, endPoint, duration, stepCallback, completeCallback) {
+        const startTime = performance.now();
+        let stepIndex = 0; // 步骤索引
+        
+        const animate = (timestamp) => {
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // 线性插值计算当前位置
+            const x = this.calculateLinearInterpolation(startPoint.x, endPoint.x, progress);
+            const y = this.calculateLinearInterpolation(startPoint.y, endPoint.y, progress);
+            
+            // 调用步骤回调，更新参数顺序
+            if (stepCallback) {
+                stepCallback(x, y, stepIndex++);
+            }
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // 动画完成，调用完成回调
+                if (completeCallback) {
+                    completeCallback();
+                }
+            }
+        };
+        
+        requestAnimationFrame(animate);
+    }
+
+    /**
+     * 沿路径移动（多点之间的移动）
+     * @param {Array} points - 路径点数组 [{x,y}, {x,y}, ...]
+     * @param {number} duration - 动画持续时间（毫秒）
+     * @param {function} stepCallback - 每步回调 (x, y, stepIndex, segmentIndex)
+     * @param {function} segmentCompleteCallback - 每段完成回调 (segmentIndex)
+     * @param {function} completeCallback - 全部完成回调
+     */
+    moveAlongPath(points, duration, stepCallback, segmentCompleteCallback, completeCallback) {
+        if (!points || points.length < 2) {
+            if (completeCallback) completeCallback();
+            return;
+        }
+        
+        // 总段数
+        const totalSegments = points.length - 1;
+        
+        // 每段的持续时间
+        const segmentDuration = duration / totalSegments;
+        
+        // 当前段索引
+        let currentSegment = 0;
+        
+        // 递归执行每一段的移动
+        const moveNextSegment = () => {
+            if (currentSegment >= totalSegments) {
+                // 所有段都完成了
+                if (completeCallback) completeCallback();
+                return;
+            }
+            
+            const startPoint = points[currentSegment];
+            const endPoint = points[currentSegment + 1];
+            
+            // 使用内核函数移动当前段
+            this.moveBetweenPoints(
+                startPoint,
+                endPoint,
+                segmentDuration,
+                (x, y, stepIndex) => {
+                    // 传递位置和索引给步骤回调
+                    if (stepCallback) {
+                        stepCallback(x, y, stepIndex, currentSegment);
+                    }
+                },
+                () => {
+                    // 当前段完成，调用段完成回调
+                    if (segmentCompleteCallback) {
+                        segmentCompleteCallback(currentSegment);
+                    }
+                    
+                    // 移动到下一段
+                    currentSegment++;
+                    moveNextSegment();
+                }                
+            );
+        };
+        
+        // 开始第一段的移动
+        moveNextSegment();
+    }
+
+    /**
+     * 沿路径移动元素，支持方向控制、循环和自定义更新回调
+     * @param {Path} path - 路径对象
+     * @param {function} updateCallback - 每帧更新回调函数
+     * @param {('forward'|'backward')} direction - 移动方向
+     * @param {number} duration - 动画持续时间（毫秒）
+     * @param {function} [completeCallback] - 动画完成回调
+     * @param {boolean} [loop=false] - 是否循环动画
+     * @param {boolean} [yoyo=false] - 是否在循环时反向（仅在loop=true时有效）
+     */
+    followPath(path, updateCallback, direction = 'forward', duration = 1000, completeCallback = null, loop = false, yoyo = false) {
+        if (!(path instanceof Path)) {
+            throw new TypeError('path参数类型错误');
+        }
+        const points = path.points;
+        if (!points || points.length < 2) {
+            throw new TypeError('Invalid path: must contain at least two points');
+        }
+        if (!updateCallback) {
+            throw new TypeError('require updateCallback');
+        }
+        
+        // 循环计数
+        let loopCount = 0;
+        
+        // 准备路径点（根据方向处理）
+        let pathPoints = direction === 'forward' ? [...points] : [...points].reverse();
+        
+        // 当前方向
+        let currentDirection = direction;
+        
+        // 递归执行动画（支持循环）
+        const executeAnimation = () => {
+            this.moveAlongPath(
+                pathPoints,
+                duration,
+                (x, y, stepIndex, segmentIndex) => {
+                    // 调用原始的更新回调，更新参数顺序
+                    updateCallback(x, y, stepIndex, segmentIndex, loopCount, currentDirection);
+                },
+                null, // 每段完成回调
+                () => {
+                    // 全部完成回调
+                    loopCount++;
+                    
+                    if (loop) {
+                        // 如果启用了yoyo效果，切换方向并重排点
+                        if (yoyo) {
+                            currentDirection = currentDirection === 'forward' ? 'backward' : 'forward';
+                            pathPoints = pathPoints.reverse();
+                        }
+                        
+                        // 继续下一次循环
+                        executeAnimation();
+                    } else {
+                        // 动画结束，调用完成回调
+                        if (completeCallback) {
+                            completeCallback(loopCount);
+                        }
+                    }
+                }
+            );
+        };
+        
+        // 开始第一次动画
+        executeAnimation();
+    }
+
+    // 线性插值计算方法
+    calculateLinearInterpolation(start, end, progress) {
+        return start + (end - start) * progress;
+    }
+
+    /**
      * 抽象接口，让元素沿着路径进行移动
      * @param {Element} element 需要移动的元素
      * @param {Path} path 移动路径
@@ -276,7 +449,7 @@ class AnimationFramework {
         // 绘制方框的逻辑
         throw new Error('子类必须实现drawBox方法');
     }
-    
+
     /**
      * 抽象接口，绘制链接
      * @param {Link} link 链接对象

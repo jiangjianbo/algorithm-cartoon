@@ -13,7 +13,16 @@ beforeAll(() => {
     const dom = new JSDOM('<!DOCTYPE html>');
     global.document = dom.window.document;
     global.window = dom.window;
-    global.requestAnimationFrame = (callback) => callback();
+    
+    // 使用 setTimeout 异步执行回调，避免同步递归
+    global.requestAnimationFrame = (callback) => {
+        return setTimeout(callback, 0);
+    };
+    
+    // 同时提供 cancelAnimationFrame 实现
+    global.cancelAnimationFrame = (timeoutId) => {
+        clearTimeout(timeoutId);
+    };
 });
 
 
@@ -166,7 +175,6 @@ describe('CanvasAnimationFramework', () => {
         });
     });
 
-    /*
     // 测试动画更新
     describe('Animation Update', () => {
         it('should clear canvas and redraw elements', () => {
@@ -182,5 +190,4 @@ describe('CanvasAnimationFramework', () => {
             expect(context.rect).toHaveBeenCalledWith(10, 20, 100, 50);
         });
     });
-    */
 });

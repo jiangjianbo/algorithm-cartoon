@@ -191,3 +191,4 @@ describe("Path Class", () => {
         expect(path.getEndPoint()).toEqual({ x: 100, y: 100 });
     });
 });
+

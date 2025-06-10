@@ -164,6 +164,12 @@ class CanvasAnimationFramework extends AnimationFramework  {
         this.lastFrameTime = timestamp;
         
         // 清除画布
+        this.doUpdate();
+
+        requestAnimationFrame(this.update.bind(this));
+    }
+
+    doUpdate() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         // 绘制所有元素
@@ -177,8 +183,6 @@ class CanvasAnimationFramework extends AnimationFramework  {
             this.activeDrawStyle(element, element.style);
             element.draw(this);
         });
-
-        requestAnimationFrame(this.update.bind(this));
     }
 
     // Canvas上下文代理方法
