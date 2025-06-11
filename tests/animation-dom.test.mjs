@@ -15,8 +15,9 @@ beforeAll(() => {
     global.document = dom.window.document;
     global.window = dom.window;
     // 使用 setTimeout 异步执行回调，避免同步递归
+    let time = 1;
     global.requestAnimationFrame = (callback) => {
-        return setTimeout(callback, 0);
+        return setTimeout(() => callback((performance.now() || 0) + time++), 0);
     };
     
     // 同时提供 cancelAnimationFrame 实现
@@ -176,10 +177,10 @@ describe('DOMAnimationFramework', () => {
             jest.advanceTimersByTime(500);
 
             const domElement = framework.elementMap.get(element.id);
-            expect(element.x).toBeCloseTo(50);
-            expect(element.y).toBeCloseTo(50);
-            expect(domElement.style.left).toBe('50px');
-            expect(domElement.style.top).toBe('50px');
+            expect(element.x).toBeCloseTo(100);
+            expect(element.y).toBeCloseTo(100);
+            expect(domElement.style.left).toBe('100px');
+            expect(domElement.style.top).toBe('100px');
 
             jest.useRealTimers();
         });

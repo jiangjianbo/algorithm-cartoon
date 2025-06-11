@@ -1,12 +1,12 @@
 'use strict';
 
-import {Element, Path, Box, Link, AnimationFramework} from './animation.js';
+import { Element, Path, Box, Link, AnimationFramework } from './animation.js';
 
 /**
  * Canvas渲染的动画框架实现
  * @extends AnimationFramework
  */
-class CanvasAnimationFramework extends AnimationFramework  {
+class CanvasAnimationFramework extends AnimationFramework {
     /**
      * 创建Canvas动画框架实例
      * @param {string} canvasId - HTML Canvas元素的ID
@@ -16,11 +16,11 @@ class CanvasAnimationFramework extends AnimationFramework  {
         super();
         this.canvasId = canvasId;
         this.canvas = document.getElementById(canvasId);
-        
+
         if (!this.canvas) {
             throw new Error(`无法找到ID为 "${canvasId}" 的Canvas元素`);
         }
-        
+
         this.context = this.canvas.getContext('2d');
         this.lastFrameTime = 0;
         this.fps = 60;
@@ -38,7 +38,7 @@ class CanvasAnimationFramework extends AnimationFramework  {
 
         const path = link.path;
         this.moveTo(path.getStartPoint().x, path.getStartPoint().y);
-        
+
         for (let i = 1; i < path.points.length; i++) {
             this.lineTo(path.points[i].x, path.points[i].y);
         }
@@ -59,7 +59,7 @@ class CanvasAnimationFramework extends AnimationFramework  {
             this.lineTo(path.getStartPoint().x + 10, path.getStartPoint().y - 5);
             this.closePath();
         }
-        
+
         if (link.endArrow) {
             this.moveTo(path.getEndPoint().x, path.getEndPoint().y);
             this.lineTo(path.getEndPoint().x - 10, path.getEndPoint().y + 5);
@@ -77,13 +77,13 @@ class CanvasAnimationFramework extends AnimationFramework  {
         this.beginPath();
         this.rect(box.x, box.y, box.width, box.height);
         this.activeDrawStyle(box, box.style);
-        
+
         // 处理填充样式
         if (box.style.backgroundColor !== 'transparent') {
             this.context.fillStyle = box.style.backgroundColor;
             this.context.fill();
         }
-        
+
         this.stroke();
     }
 
@@ -92,32 +92,30 @@ class CanvasAnimationFramework extends AnimationFramework  {
      * @param {Element} element - 要移动的元素
      * @param {Path} path - 移动路径
      * @param {number} duration - 动画持续时间（毫秒）
+     * @param {function} [completeCallback] - 动画完成回调
      */
-    moveBy(element, path, duration) {
+    moveBy(element, path, duration, completeCallback) {
         if (!(element instanceof Element) || !(path instanceof Path)) {
             throw new TypeError('moveBy参数类型错误');
         }
-        
-        const startPoint = path.getStartPoint();
-        const endPoint = path.getEndPoint();
-        const startX = element.x;
-        const startY = element.y;
-        const startTime = performance.now();
+        if (typeof duration !== 'number' || duration <= 0) {
+            throw new TypeError('duration参数类型错误');
+        }
 
-        const animate = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // 线性插值计算当前位置
-            element.x = startX + (endPoint.x - startPoint.x) * progress;
-            element.y = startY + (endPoint.y - startPoint.y) * progress;
+        // 使用followPath方法实现移动
+        this.followPath(
+            path,
+            (x, y, stepIndex, segmentIndex, loopCount, direction) => {
+                // 更新元素位置
+                element.moveTo(x, y);
 
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-
-        requestAnimationFrame(animate);
+                // 更新Canvas渲染
+                this.render();
+            },
+            'forward',
+            duration,
+            completeCallback
+        );
     }
 
     /**
@@ -139,7 +137,7 @@ class CanvasAnimationFramework extends AnimationFramework  {
 
         this.context.strokeStyle = borderColor;
         this.context.lineWidth = borderWidth;
-        
+
         // 应用线条样式
         if (borderStyle === 'dashed') {
             this.context.setLineDash([5, 10]);
@@ -160,9 +158,9 @@ class CanvasAnimationFramework extends AnimationFramework  {
             requestAnimationFrame(this.update.bind(this));
             return;
         }
-        
+
         this.lastFrameTime = timestamp;
-        
+
         // 清除画布
         this.doUpdate();
 
@@ -186,23 +184,23 @@ class CanvasAnimationFramework extends AnimationFramework  {
     }
 
     // Canvas上下文代理方法
-    beginPath(){
+    beginPath() {
         this.context.beginPath();
     }
 
-    closePath(){
+    closePath() {
         this.context.closePath();
     }
 
-    rect(x, y, width, height){
+    rect(x, y, width, height) {
         this.context.rect(x, y, width, height);
     }
-    
-    stroke(){
+
+    stroke() {
         this.context.stroke();
     }
 
-    moveTo(x, y){
+    moveTo(x, y) {
         this.context.moveTo(x, y);
     }
 

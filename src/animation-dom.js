@@ -88,36 +88,32 @@ class DOMAnimationFramework extends AnimationFramework {
     }
 
     // 元素沿路径移动
-    moveBy(element, path, duration) {
-        const startPoint = path.getStartPoint();
-        const endPoint = path.getEndPoint();
-        const startX = element.x;
-        const startY = element.y;
-        const startTime = performance.now();
+    moveBy(element, path, duration, completeCallback) {
+        if (!(element instanceof Element) || !(path instanceof Path)) {
+            throw new TypeError('moveBy参数类型错误');
+        }
+        if (typeof duration !== 'number' || duration <= 0) {
+            throw new TypeError('duration参数类型错误');
+        }
 
-        const animate = (timestamp) => {
-            const elapsed = timestamp - startTime;
-            const progress = Math.min(elapsed / duration, 1);
+        // 使用followPath方法实现移动
+        this.followPath(
+            path,
+            (x, y, stepIndex, segmentIndex, loopCount, direction) => {
+                // 更新元素位置
+                element.moveTo(x, y);
 
-            // 线性插值计算当前位置
-            const currentX = startX + (endPoint.x - startPoint.x) * progress;
-            const currentY = startY + (endPoint.y - startPoint.y) * progress;
-
-            element.moveTo(currentX, currentY);
-
-            // 更新DOM位置
-            const domElement = this.elementMap.get(element.id);
-            if (domElement) {
-                domElement.style.left = `${currentX}px`;
-                domElement.style.top = `${currentY}px`;
-            }
-
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-
-        requestAnimationFrame(animate);
+                // 更新DOM位置
+                const domElement = this.elementMap.get(element.id);
+                if (domElement) {
+                    domElement.style.left = `${x}px`;
+                    domElement.style.top = `${y}px`;
+                }
+            },
+            'forward',
+            duration,
+            completeCallback
+        );
     }
 
     // 添加闪烁效果

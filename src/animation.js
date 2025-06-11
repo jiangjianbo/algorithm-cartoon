@@ -435,8 +435,9 @@ class AnimationFramework {
      * @param {Element} element 需要移动的元素
      * @param {Path} path 移动路径
      * @param {number} duration 移动时间
+     * @param {function} [completeCallback] - 动画完成回调
      */
-    moveBy(element, path, duration) {
+    moveBy(element, path, duration, completeCallback) {
         // 实现元素移动的逻辑
         throw new Error('子类必须实现moveBy方法');
     }

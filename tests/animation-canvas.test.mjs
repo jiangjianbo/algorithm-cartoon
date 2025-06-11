@@ -15,8 +15,9 @@ beforeAll(() => {
     global.window = dom.window;
     
     // 使用 setTimeout 异步执行回调，避免同步递归
+    let time = 1;
     global.requestAnimationFrame = (callback) => {
-        return setTimeout(callback, 0);
+        return setTimeout(() => callback((performance.now() || 0) + time++), 0);
     };
     
     // 同时提供 cancelAnimationFrame 实现

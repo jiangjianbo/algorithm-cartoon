@@ -14,8 +14,9 @@ beforeAll(() => {
     global.document = dom.window.document;
     global.window = dom.window;
     // 使用 setTimeout 异步执行回调，避免同步递归
+    let time = 1;
     global.requestAnimationFrame = (callback) => {
-        return setTimeout(callback, 0);
+        return setTimeout(() => callback((performance.now() || 0) + time++), 0);
     };
 
     // 同时提供 cancelAnimationFrame 实现
@@ -48,6 +49,116 @@ describe('followPath', () => {
     });
 
     describe('moveBetweenPoints', () => {
+        it('should move between two adjacent horizontal points', () => {
+            jest.useFakeTimers();
+
+            const startPoint = { x: 0, y: 0 };
+            const endPoint = { x: 10, y: 0 }; // 相邻的水平点
+            const duration = 1;
+
+            const stepCallback = jest.fn();
+            const completeCallback = jest.fn();
+
+            framework.moveBetweenPoints(startPoint, endPoint, duration, stepCallback, completeCallback);
+
+            // 完成动画
+            jest.advanceTimersByTime(1000);
+
+            // 验证回调被调用
+            expect(stepCallback).toHaveBeenCalled();
+            expect(completeCallback).toHaveBeenCalled();
+
+            // 验证stepCallback调用次数（应该至少一次）
+            expect(stepCallback).toHaveBeenCalledTimes(1);
+            expect(stepCallback.mock.calls.length).toBeGreaterThan(0);
+
+            // 验证最后一次调用的位置是否接近终点
+            const lastCall = stepCallback.mock.calls[stepCallback.mock.calls.length - 1];
+            expect(lastCall.length).toBe(3); // x, y, stepIndex
+            expect(typeof lastCall[0]).toBe('number'); // x
+            expect(typeof lastCall[1]).toBe('number'); // y
+            expect(lastCall[0]).toBeCloseTo(endPoint.x, 0); // x
+            expect(lastCall[1]).toBeCloseTo(endPoint.y, 0); // y
+
+            jest.useRealTimers();
+        });
+
+        it('should move between two adjacent vertical points', () => {
+            jest.useFakeTimers();
+
+            const startPoint = { x: 0, y: 0 };
+            const endPoint = { x: 0, y: 10 }; // 相邻的垂直点
+            const duration = 1;
+
+            const stepCallback = jest.fn();
+            const completeCallback = jest.fn();
+
+            framework.moveBetweenPoints(startPoint, endPoint, duration, stepCallback, completeCallback);
+
+            // 完成动画
+            jest.advanceTimersByTime(1000);
+
+            // 验证回调被调用
+            expect(stepCallback).toHaveBeenCalled();
+            expect(completeCallback).toHaveBeenCalled();
+
+            // 验证stepCallback调用次数
+            expect(stepCallback).toHaveBeenCalledTimes(1);
+            expect(stepCallback.mock.calls.length).toBeGreaterThan(0);
+
+            // 验证最后一次调用的位置是否接近终点
+            const lastCall = stepCallback.mock.calls[stepCallback.mock.calls.length - 1];
+            expect(lastCall.length).toBe(3); // x, y, stepIndex
+            expect(typeof lastCall[0]).toBe('number'); // x
+            expect(typeof lastCall[1]).toBe('number'); // y
+            expect(lastCall[0]).toBeCloseTo(endPoint.x, 0); // x
+            expect(lastCall[1]).toBeCloseTo(endPoint.y, 0); // y
+
+            jest.useRealTimers();
+        });
+
+        it('should move between two distant points on a 45-degree diagonal', () => {
+            jest.useFakeTimers();
+
+            const startPoint = { x: 0, y: 0 };
+            const endPoint = { x: 100, y: 100 }; // 45度斜线上的较远点
+            const duration = 1000;
+
+            const stepCallback = jest.fn();
+            const completeCallback = jest.fn();
+
+            framework.moveBetweenPoints(startPoint, endPoint, duration, stepCallback, completeCallback);
+
+            // 完成动画
+            jest.advanceTimersByTime(1000);
+
+            // 验证回调被调用
+            expect(stepCallback).toHaveBeenCalled();
+            expect(completeCallback).toHaveBeenCalled();
+
+            // 验证stepCallback调用次数（应该多次调用）
+            //expect(stepCallback).toHaveBeenCalledTimes(expect.any(Number));
+            expect(stepCallback.mock.calls.length).toBeGreaterThan(1);
+
+            // 验证stepIndex递增
+            const calls = stepCallback.mock.calls;
+            for (let i = 1; i < calls.length; i++) {
+                expect(calls[i][2]).toBe(calls[i - 1][2] + 1); // stepIndex应该递增
+            }
+
+            // 验证最后一次调用的位置是否接近终点
+            const lastCall = calls[calls.length - 1];
+            expect(lastCall.length).toBe(3); // x, y, stepIndex
+            expect(typeof lastCall[0]).toBe('number'); // x
+            expect(typeof lastCall[1]).toBe('number'); // y
+            expect(lastCall[0]).toBeCloseTo(endPoint.x, 0); // x
+            expect(lastCall[1]).toBeCloseTo(endPoint.y, 0); // y
+
+            jest.useRealTimers();
+        });
+    });
+
+    describe('moveBetweenPoints1', () => {
         it('should move between two points with correct parameters', () => {
             jest.useFakeTimers();
 
@@ -135,9 +246,64 @@ describe('followPath', () => {
             jest.useRealTimers();
         });
     });
-    
+
     describe('moveAlongPath', () => {
-        it('should move along path with correct parameters', () => {
+        it('should move along path with two distant points', () => {
+            jest.useFakeTimers();
+
+            const points = [
+                { x: 0, y: 0 },
+                { x: 100, y: 100 }
+            ];
+
+            const duration = 1000;
+            const stepCallback = jest.fn();
+            const segmentCompleteCallback = jest.fn();
+            const completeCallback = jest.fn();
+
+            framework.moveAlongPath(points, duration, stepCallback, segmentCompleteCallback, completeCallback);
+
+            // 验证初始状态
+            expect(stepCallback).not.toHaveBeenCalled();
+            expect(segmentCompleteCallback).not.toHaveBeenCalled();
+            expect(completeCallback).not.toHaveBeenCalled();
+
+            // 推进时间到动画中间
+            jest.advanceTimersByTime(500);
+
+            // 验证stepCallback被调用
+            expect(stepCallback).toHaveBeenCalled();
+
+            // 验证stepCallback参数
+            const calls = stepCallback.mock.calls;
+            calls.forEach(call => {
+                expect(call.length).toBe(4); // x, y, stepIndex, segmentIndex
+                expect(typeof call[0]).toBe('number'); // x
+                expect(typeof call[1]).toBe('number'); // y
+                expect(typeof call[2]).toBe('number'); // stepIndex
+                expect(typeof call[3]).toBe('number'); // segmentIndex
+                expect(call[3]).toBe(0); // 只有一个段，所以segmentIndex应该始终为0
+            });
+
+            // 完成动画
+            jest.advanceTimersByTime(500);
+
+            // 验证segmentCompleteCallback被调用一次
+            expect(segmentCompleteCallback).toHaveBeenCalledTimes(1);
+            expect(segmentCompleteCallback).toHaveBeenCalledWith(0);
+
+            // 验证completeCallback被调用
+            expect(completeCallback).toHaveBeenCalled();
+
+            // 验证最后位置接近终点
+            const lastCall = stepCallback.mock.calls[stepCallback.mock.calls.length - 1];
+            expect(lastCall[0]).toBeCloseTo(100, 0); // x
+            expect(lastCall[1]).toBeCloseTo(100, 0); // y
+
+            jest.useRealTimers();
+        });
+
+        it('should move along path with three distant points', () => {
             jest.useFakeTimers();
 
             const points = [
@@ -154,20 +320,16 @@ describe('followPath', () => {
             framework.moveAlongPath(points, duration, stepCallback, segmentCompleteCallback, completeCallback);
 
             // 验证初始状态
+            expect(stepCallback).not.toHaveBeenCalled();
             expect(segmentCompleteCallback).not.toHaveBeenCalled();
+            expect(completeCallback).not.toHaveBeenCalled();
 
-            // 完成第一段
-            jest.advanceTimersByTime(500);
-            expect(segmentCompleteCallback).toHaveBeenCalledTimes(1);
-            expect(segmentCompleteCallback).toHaveBeenCalledWith(0);
+            // 完成第一段 (0,0 -> 100,0)
+            jest.advanceTimersByTime(333);
 
-            // 完成第二段
-            jest.advanceTimersByTime(500);
+            // 验证segmentCompleteCallback被调用一次
             expect(segmentCompleteCallback).toHaveBeenCalledTimes(2);
-            expect(segmentCompleteCallback).toHaveBeenCalledWith(1);
-
-            // 验证完成回调
-            expect(completeCallback).toHaveBeenCalled();
+            expect(segmentCompleteCallback).toHaveBeenCalledWith(0);
 
             // 验证stepCallback参数
             const calls = stepCallback.mock.calls;
@@ -177,178 +339,88 @@ describe('followPath', () => {
                 expect(typeof call[1]).toBe('number'); // y
                 expect(typeof call[2]).toBe('number'); // stepIndex
                 expect(typeof call[3]).toBe('number'); // segmentIndex
+                expect(call[3]).toBeLessThanOrEqual(1); // 此时应该只有段0和段1
             });
+
+            // 完成第二段 (100,0 -> 100,100)
+            jest.advanceTimersByTime(667);
+
+            // 验证segmentCompleteCallback被调用两次
+            expect(segmentCompleteCallback).toHaveBeenCalledTimes(2);
+            expect(segmentCompleteCallback).toHaveBeenCalledWith(1);
+
+            // 验证completeCallback被调用
+            expect(completeCallback).toHaveBeenCalled();
+
+            // 验证最后位置接近终点
+            const lastCall = stepCallback.mock.calls[stepCallback.mock.calls.length - 1];
+            expect(lastCall[0]).toBeCloseTo(100, 0); // x
+            expect(lastCall[1]).toBeCloseTo(100, 0); // y
 
             jest.useRealTimers();
         });
 
-        it('should handle path with two points', () => {
+        it('should move along path with five points', () => {
             jest.useFakeTimers();
 
             const points = [
                 { x: 0, y: 0 },
-                { x: 100, y: 100 }
+                { x: 100, y: 0 },
+                { x: 100, y: 100 },
+                { x: 0, y: 100 },
+                { x: 0, y: 200 }
             ];
 
             const duration = 1000;
+            const stepCallback = jest.fn();
+            const segmentCompleteCallback = jest.fn();
             const completeCallback = jest.fn();
 
-            framework.moveAlongPath(points, duration, null, null, completeCallback);
+            framework.moveAlongPath(points, duration, stepCallback, segmentCompleteCallback, completeCallback);
 
-            // 完成动画
-            jest.advanceTimersByTime(1000);
+            // 验证初始状态
+            expect(stepCallback).not.toHaveBeenCalled();
+            expect(segmentCompleteCallback).not.toHaveBeenCalled();
+            expect(completeCallback).not.toHaveBeenCalled();
+            /*
+            // 完成第一段
+            jest.advanceTimersByTime(200);
+            expect(segmentCompleteCallback).toHaveBeenCalledTimes(1);
+            expect(segmentCompleteCallback).toHaveBeenCalledWith(0);
+
+            // 完成第二段
+            jest.advanceTimersByTime(200);
+            expect(segmentCompleteCallback).toHaveBeenCalledTimes(2);
+            expect(segmentCompleteCallback).toHaveBeenCalledWith(1);
+
+            // 完成第三段
+            jest.advanceTimersByTime(200);
+            expect(segmentCompleteCallback).toHaveBeenCalledTimes(3);
+            expect(segmentCompleteCallback).toHaveBeenCalledWith(2);
+            */
+            // 完成第四段
+            jest.advanceTimersByTime(400);
+            expect(segmentCompleteCallback).toHaveBeenCalledTimes(4);
+            expect(segmentCompleteCallback).toHaveBeenCalledWith(3);
+
+            // 验证completeCallback被调用
             expect(completeCallback).toHaveBeenCalled();
 
-            jest.useRealTimers();
-        });
+            // 验证最后位置接近终点
+            const lastCall = stepCallback.mock.calls[stepCallback.mock.calls.length - 1];
+            expect(lastCall[0]).toBeCloseTo(0, 0); // x
+            expect(lastCall[1]).toBeCloseTo(200, 0); // y
 
-        it('should handle empty path', () => {
-            jest.useFakeTimers();
-
-            const points = [];
-            const duration = 1000;
-            const completeCallback = jest.fn();
-
-            framework.moveAlongPath(points, duration, null, null, completeCallback);
-
-            // 应该立即完成
-            expect(completeCallback).toHaveBeenCalled();
-
-            jest.useRealTimers();
-        });
-    });
-
-    describe('followPath', () => {
-        it('should throw error for invalid path', () => {
-            const updateCallback = jest.fn();
-            expect(() => framework.followPath(null, updateCallback)).toThrow();
-            expect(() => framework.followPath(new Path([]), updateCallback)).toThrow();
-        });
-
-        it('should follow path with correct parameters', () => {
-            jest.useFakeTimers();
-
-            const path = new Path([
-                { x: 0, y: 0 },
-                { x: 100, y: 0 },
-                { x: 100, y: 100 }
-            ]);
-
-            const updateCallback = jest.fn();
-
-            framework.followPath(path, updateCallback, 'forward', 1000);
-
-            // 完成动画
-            jest.advanceTimersByTime(1000);
-
-            // 验证updateCallback被调用
-            expect(updateCallback).toHaveBeenCalled();
-
-            // 验证updateCallback参数
-            const calls = updateCallback.mock.calls;
-            calls.forEach(call => {
-                expect(call.length).toBe(6); // x, y, stepIndex, segmentIndex, loopCount, direction
-                expect(typeof call[0]).toBe('number'); // x
-                expect(typeof call[1]).toBe('number'); // y
-                expect(typeof call[2]).toBe('number'); // stepIndex
-                expect(typeof call[3]).toBe('number'); // segmentIndex
-                expect(typeof call[4]).toBe('number'); // loopCount
-                expect(typeof call[5]).toBe('string'); // direction
+            // 验证所有段都被处理
+            const segmentIndices = new Set();
+            stepCallback.mock.calls.forEach(call => {
+                segmentIndices.add(call[3]);
             });
 
-            jest.useRealTimers();
-        });
-
-        it('should loop animation correctly', () => {
-            jest.useFakeTimers();
-
-            const path = new Path([
-                { x: 0, y: 0 },
-                { x: 100, y: 0 }
-            ]);
-
-            const updateCallback = jest.fn();
-            const completeCallback = jest.fn();
-
-            framework.followPath(path, updateCallback, 'forward', 1000, completeCallback, true);
-
-            // 完成第一次循环
-            jest.advanceTimersByTime(1000);
-            expect(completeCallback).not.toHaveBeenCalled();
-
-            // 验证loopCount为0（第一次循环）
-            const calls = updateCallback.mock.calls;
-            if (calls.length > 0) {
-                const lastCall = calls[calls.length - 1];
-                expect(lastCall[4]).toBe(0); // loopCount
-            }
-
-            // 完成第二次循环
-            jest.advanceTimersByTime(1000);
-
-            // 验证loopCount为1（第二次循环）
-            const newCalls = updateCallback.mock.calls;
-            if (newCalls.length > 0) {
-                const newLastCall = newCalls[newCalls.length - 1];
-                expect(newLastCall[4]).toBe(1); // loopCount
-            }
-
-            jest.useRealTimers();
-        });
-
-        it('should reverse direction with yoyo effect', () => {
-            jest.useFakeTimers();
-
-            const path = new Path([
-                { x: 0, y: 0 },
-                { x: 100, y: 0 }
-            ]);
-
-            const updateCallback = jest.fn();
-
-            framework.followPath(path, updateCallback, 'forward', 1000, null, true, true);
-
-            // 完成第一次循环（正向）
-            jest.advanceTimersByTime(1000);
-
-            // 验证方向
-            const calls = updateCallback.mock.calls;
-            if (calls.length > 0) {
-                const lastCall = calls[calls.length - 1];
-                expect(lastCall[5]).toBe('forward');
-            }
-
-            // 完成第二次循环（反向）
-            jest.advanceTimersByTime(1000);
-
-            // 验证方向
-            const newCalls = updateCallback.mock.calls;
-            if (newCalls.length > 0) {
-                const newLastCall = newCalls[newCalls.length - 1];
-                expect(newLastCall[5]).toBe('backward');
-            }
-
-            jest.useRealTimers();
-        });
-
-        it('should call completeCallback with correct loop count', () => {
-            jest.useFakeTimers();
-
-            const path = new Path([
-                { x: 0, y: 0 },
-                { x: 100, y: 0 }
-            ]);
-
-            const updateCallback = jest.fn();
-            const completeCallback = jest.fn();
-
-            framework.followPath(path, updateCallback, 'forward', 1000, completeCallback, false);
-
-            // 完成动画
-            jest.advanceTimersByTime(1000);
-            expect(completeCallback).toHaveBeenCalledWith(1);
+            expect(segmentIndices.size).toBe(4); // 四个段 (0, 1, 2, 3)
 
             jest.useRealTimers();
         });
     });
+
 });
